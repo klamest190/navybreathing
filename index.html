@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Navy SEAL Pro Breather</title>
+    <style>
+      :root {
+        --seal-blue: #001d3d;
+        --seal-gold: #ffc300;
+        --seal-accent: #003566;
+        --text-light: #e0e1dd;
+        --danger: #ef233c;
+        --success: #00ffcc;
+      }
+
+      body {
+        background-color: var(--seal-blue);
+        color: var(--text-light);
+        font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        margin: 0;
+        overflow: hidden;
+      }
+
+      h1 {
+        margin-bottom: 20px;
+        font-weight: 300;
+        letter-spacing: 4px;
+        color: var(--seal-gold);
+        text-transform: uppercase;
+      }
+
+      .settings,
+      .controls {
+        margin-bottom: 20px;
+        display: flex;
+        gap: 10px;
+      }
+
+      button {
+        background: var(--seal-accent);
+        border: 1px solid var(--seal-gold);
+        color: var(--seal-gold);
+        padding: 10px 18px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: 0.2s;
+        border-radius: 4px;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+      }
+
+      button:hover {
+        background: var(--seal-gold);
+        color: var(--seal-blue);
+      }
+
+      button.active {
+        background: var(--seal-gold);
+        color: var(--seal-blue);
+        box-shadow: 0 0 10px rgba(255, 195, 0, 0.5);
+      }
+
+      button.btn-main {
+        padding: 12px 25px;
+        font-size: 1rem;
+        border-width: 2px;
+      }
+
+      button.btn-reset {
+        border-color: var(--danger);
+        color: var(--danger);
+      }
+
+      button.btn-reset:hover {
+        background: var(--danger);
+        color: white;
+      }
+
+      /* Die Box */
+      .box-container {
+        position: relative;
+        width: 320px;
+        height: 320px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.2);
+      }
+
+      .dot {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        background-color: var(--seal-gold);
+        border-radius: 50%;
+        box-shadow: 0 0 20px var(--seal-gold);
+        top: 310px; /* Startposition links unten */
+        left: -10px;
+        z-index: 10;
+        /* Transition wird via JS gesteuert */
+      }
+
+      .instruction-container {
+        text-align: center;
+        pointer-events: none;
+      }
+
+      #phase-text {
+        font-size: 1.5rem;
+        font-weight: bold;
+        text-transform: uppercase;
+        margin-bottom: 5px;
+        display: block;
+        letter-spacing: 1px;
+      }
+
+      #timer {
+        font-size: 5rem;
+        font-family: "Courier New", Courier, monospace;
+        font-weight: bold;
+        line-height: 1;
+      }
+
+      .info-text {
+        margin-top: 25px;
+        font-size: 0.85rem;
+        opacity: 0.5;
+        max-width: 300px;
+        text-align: center;
+        line-height: 1.4;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Box Breathing</h1>
+
+    <div class="settings">
+      <button onclick="setBoxTime(4)" id="btn-4" class="active">4s</button>
+      <button onclick="setBoxTime(6)" id="btn-6">6s</button>
+      <button onclick="setBoxTime(8)" id="btn-8">8s</button>
+    </div>
+
+    <div class="box-container">
+      <div id="dot" class="dot"></div>
+      <div class="instruction-container">
+        <span id="phase-text">Bereit?</span>
+        <div id="timer">--</div>
+      </div>
+    </div>
+
+    <div class="controls" style="margin-top: 30px">
+      <button class="btn-main" id="startStopBtn" onclick="togglePlay()">
+        Start
+      </button>
+      <button class="btn-main btn-reset" onclick="resetExercise()">
+        Reset
+      </button>
+    </div>
+
+    <p class="info-text" id="status-msg">Wähle deine Zeit und drücke Start.</p>
+
+    <script>
+      let boxTime = 4;
+      let currentPhase = -1; // -1: Standby, 0: Ein, 1: HaltVoll, 2: Aus, 3: HaltLeer
+      let timeLeft = 0;
+      let isRunning = false;
+      let timerInterval;
+
+      const phases = [
+        { text: "Einatmen", color: "#00ffcc" },
+        { text: "Halten (Voll)", color: "#ffc300" },
+        { text: "Ausatmen", color: "#ff595e" },
+        { text: "Halten (Leer)", color: "#a2d2ff" },
+      ];
+
+      const dot = document.getElementById("dot");
+      const phaseText = document.getElementById("phase-text");
+      const timerDisplay = document.getElementById("timer");
+      const startStopBtn = document.getElementById("startStopBtn");
+
+      function setBoxTime(s) {
+        boxTime = parseInt(s);
+        document
+          .querySelectorAll(".settings button")
+          .forEach((b) => b.classList.remove("active"));
+        document.getElementById(`btn-${s}`).classList.add("active");
+        if (!isRunning) resetExercise();
+      }
+
+      function togglePlay() {
+        if (isRunning) {
+          stopExercise();
+        } else {
+          startExercise();
+        }
+      }
+
+      function startExercise() {
+        isRunning = true;
+        startStopBtn.innerText = "Stopp";
+        startStopBtn.style.borderColor = "var(--danger)";
+        startStopBtn.style.color = "var(--danger)";
+
+        if (currentPhase === -1) {
+          currentPhase = 0;
+          timeLeft = boxTime;
+        }
+
+        runCycle();
+      }
+
+      function stopExercise() {
+        isRunning = false;
+        startStopBtn.innerText = "Weiter";
+        startStopBtn.style.borderColor = "var(--seal-gold)";
+        startStopBtn.style.color = "var(--seal-gold)";
+        clearInterval(timerInterval);
+        // Punkt an aktueller Position einfrieren
+        const computedStyle = window.getComputedStyle(dot);
+        dot.style.top = computedStyle.top;
+        dot.style.left = computedStyle.left;
+        dot.style.transition = "none";
+      }
+
+      function resetExercise() {
+        stopExercise();
+        currentPhase = -1;
+        timeLeft = boxTime;
+        isRunning = false;
+        startStopBtn.innerText = "Start";
+        phaseText.innerText = "Bereit?";
+        phaseText.style.color = "var(--text-light)";
+        timerDisplay.innerText = "--";
+
+        // Punkt zurück auf Start (Links Unten)
+        dot.style.transition = "none";
+        dot.style.left = "-10px";
+        dot.style.top = "310px";
+      }
+
+      function runCycle() {
+        if (!isRunning) return;
+
+        updatePhaseUI();
+        moveDot();
+
+        timerInterval = setInterval(() => {
+          timeLeft--;
+          timerDisplay.innerText = timeLeft;
+
+          if (timeLeft <= 0) {
+            clearInterval(timerInterval);
+            currentPhase = (currentPhase + 1) % 4;
+            timeLeft = boxTime;
+            runCycle();
+          }
+        }, 1000);
+      }
+
+      function updatePhaseUI() {
+        const p = phases[currentPhase];
+        phaseText.innerText = p.text;
+        phaseText.style.color = p.color;
+        timerDisplay.innerText = timeLeft;
+      }
+
+      function moveDot() {
+        // Wir setzen die Transition genau auf die boxTime für perfekte Synchronität
+        dot.style.transition = `all ${boxTime}s linear`;
+
+        const size = 320;
+        const offset = -10;
+
+        // In jeder Phase sagen wir dem Punkt, wo er am ENDE der Phase sein soll
+        switch (currentPhase) {
+          case 0: // Einatmen: Muss nach OBEN LINKS
+            // Zuerst hart auf die Startposition dieser Phase setzen, falls nötig
+            dot.style.left = offset + "px";
+            dot.style.top = size + offset + "px";
+            // Dann Transition zum Ziel
+            setTimeout(() => {
+              dot.style.top = offset + "px";
+            }, 10);
+            break;
+          case 1: // Halten Voll: Muss nach OBEN RECHTS
+            dot.style.top = offset + "px";
+            dot.style.left = size + offset + "px";
+            break;
+          case 2: // Ausatmen: Muss nach UNTEN RECHTS
+            dot.style.left = size + offset + "px";
+            dot.style.top = size + offset + "px";
+            break;
+          case 3: // Halten Leer: Muss nach UNTEN LINKS
+            dot.style.top = size + offset + "px";
+            dot.style.left = offset + "px";
+            break;
+        }
+      }
+    </script>
+  </body>
+</html>
