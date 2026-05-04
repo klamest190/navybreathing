@@ -1,8 +1,11 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
     <title>Navy SEAL Pro Breather</title>
     <style>
       :root {
@@ -27,12 +30,27 @@
         overflow: hidden;
       }
 
+      /* Language Switch */
+      .lang-switch {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+      }
+
+      .lang-switch button {
+        padding: 5px 10px;
+        font-size: 0.7rem;
+        margin-left: 5px;
+        border-radius: 3px;
+      }
+
       h1 {
         margin-bottom: 20px;
         font-weight: 300;
         letter-spacing: 4px;
         color: var(--seal-gold);
         text-transform: uppercase;
+        text-align: center;
       }
 
       .settings,
@@ -63,7 +81,6 @@
       button.active {
         background: var(--seal-gold);
         color: var(--seal-blue);
-        box-shadow: 0 0 10px rgba(255, 195, 0, 0.5);
       }
 
       button.btn-main {
@@ -77,16 +94,10 @@
         color: var(--danger);
       }
 
-      button.btn-reset:hover {
-        background: var(--danger);
-        color: white;
-      }
-
-      /* Die Box */
       .box-container {
         position: relative;
-        width: 320px;
-        height: 320px;
+        width: 300px;
+        height: 300px;
         border: 1px solid rgba(255, 255, 255, 0.1);
         display: flex;
         align-items: center;
@@ -102,10 +113,9 @@
         background-color: var(--seal-gold);
         border-radius: 50%;
         box-shadow: 0 0 20px var(--seal-gold);
-        top: 310px; /* Startposition links unten */
+        top: 290px;
         left: -10px;
         z-index: 10;
-        /* Transition wird via JS gesteuert */
       }
 
       .instruction-container {
@@ -114,33 +124,48 @@
       }
 
       #phase-text {
-        font-size: 1.5rem;
+        font-size: 1.4rem;
         font-weight: bold;
         text-transform: uppercase;
         margin-bottom: 5px;
         display: block;
-        letter-spacing: 1px;
+        min-height: 1.6rem;
       }
 
       #timer {
         font-size: 5rem;
-        font-family: "Courier New", Courier, monospace;
+        font-family: monospace;
         font-weight: bold;
         line-height: 1;
       }
 
       .info-text {
         margin-top: 25px;
-        font-size: 0.85rem;
+        font-size: 0.8rem;
         opacity: 0.5;
-        max-width: 300px;
+        max-width: 280px;
         text-align: center;
-        line-height: 1.4;
+      }
+
+      /* Visitor Counter Styling */
+      .counter {
+        position: absolute;
+        bottom: 10px;
+        opacity: 0.4;
+        transition: opacity 0.3s;
+      }
+      .counter:hover {
+        opacity: 1;
       }
     </style>
   </head>
   <body>
-    <h1>Box Breathing</h1>
+    <div class="lang-switch">
+      <button onclick="setLanguage('en')" id="lang-en">EN</button>
+      <button onclick="setLanguage('de')" id="lang-de">DE</button>
+    </div>
+
+    <h1 id="title">Box Breathing</h1>
 
     <div class="settings">
       <button onclick="setBoxTime(4)" id="btn-4" class="active">4s</button>
@@ -151,7 +176,7 @@
     <div class="box-container">
       <div id="dot" class="dot"></div>
       <div class="instruction-container">
-        <span id="phase-text">Bereit?</span>
+        <span id="phase-text">Ready?</span>
         <div id="timer">--</div>
       </div>
     </div>
@@ -160,31 +185,93 @@
       <button class="btn-main" id="startStopBtn" onclick="togglePlay()">
         Start
       </button>
-      <button class="btn-main btn-reset" onclick="resetExercise()">
+      <button
+        class="btn-main btn-reset"
+        id="resetBtn"
+        onclick="resetExercise()"
+      >
         Reset
       </button>
     </div>
 
-    <p class="info-text" id="status-msg">Wähle deine Zeit und drücke Start.</p>
+    <p class="info-text" id="status-msg">Select your time and press start.</p>
+
+    <!-- Simple Visitor Counter (No Backend needed) -->
+    <div class="counter">
+      <img
+        src="https://hits.dwyl.com/klamest190/navybreathing.svg"
+        alt="Hits"
+      />
+    </div>
 
     <script>
+      let currentLang = "en";
       let boxTime = 4;
-      let currentPhase = -1; // -1: Standby, 0: Ein, 1: HaltVoll, 2: Aus, 3: HaltLeer
+      let currentPhase = -1;
       let timeLeft = 0;
       let isRunning = false;
       let timerInterval;
 
-      const phases = [
-        { text: "Einatmen", color: "#00ffcc" },
-        { text: "Halten (Voll)", color: "#ffc300" },
-        { text: "Ausatmen", color: "#ff595e" },
-        { text: "Halten (Leer)", color: "#a2d2ff" },
-      ];
+      const translations = {
+        en: {
+          title: "Box Breathing",
+          ready: "Ready?",
+          start: "Start",
+          stop: "Stop",
+          reset: "Reset",
+          resume: "Resume",
+          status: "Select your time and press start.",
+          running: "Focus on the gold dot...",
+          phases: ["Inhale", "Hold (Full)", "Exhale", "Hold (Empty)"],
+        },
+        de: {
+          title: "Box-Atmung",
+          ready: "Bereit?",
+          start: "Start",
+          stop: "Stopp",
+          reset: "Reset",
+          resume: "Weiter",
+          status: "Wähle die Zeit und drücke Start.",
+          running: "Fokussiere den gelben Punkt...",
+          phases: ["Einatmen", "Halten (Voll)", "Ausatmen", "Halten (Leer)"],
+        },
+      };
 
       const dot = document.getElementById("dot");
       const phaseText = document.getElementById("phase-text");
       const timerDisplay = document.getElementById("timer");
       const startStopBtn = document.getElementById("startStopBtn");
+      const resetBtn = document.getElementById("resetBtn");
+      const statusMsg = document.getElementById("status-msg");
+      const titleEl = document.getElementById("title");
+
+      function setLanguage(lang) {
+        currentLang = lang;
+        document
+          .getElementById("lang-en")
+          .classList.toggle("active", lang === "en");
+        document
+          .getElementById("lang-de")
+          .classList.toggle("active", lang === "de");
+
+        // UI Texte anpassen
+        const t = translations[lang];
+        titleEl.innerText = t.title;
+        resetBtn.innerText = t.reset;
+
+        if (!isRunning) {
+          if (currentPhase === -1) {
+            phaseText.innerText = t.ready;
+            startStopBtn.innerText = t.start;
+            statusMsg.innerText = t.status;
+          } else {
+            startStopBtn.innerText = t.resume;
+          }
+        } else {
+          startStopBtn.innerText = t.stop;
+          phaseText.innerText = t.phases[currentPhase];
+        }
+      }
 
       function setBoxTime(s) {
         boxTime = parseInt(s);
@@ -196,34 +283,29 @@
       }
 
       function togglePlay() {
-        if (isRunning) {
-          stopExercise();
-        } else {
-          startExercise();
-        }
+        if (isRunning) stopExercise();
+        else startExercise();
       }
 
       function startExercise() {
         isRunning = true;
-        startStopBtn.innerText = "Stopp";
-        startStopBtn.style.borderColor = "var(--danger)";
+        const t = translations[currentLang];
+        startStopBtn.innerText = t.stop;
         startStopBtn.style.color = "var(--danger)";
+        statusMsg.innerText = t.running;
 
         if (currentPhase === -1) {
           currentPhase = 0;
           timeLeft = boxTime;
         }
-
         runCycle();
       }
 
       function stopExercise() {
         isRunning = false;
-        startStopBtn.innerText = "Weiter";
-        startStopBtn.style.borderColor = "var(--seal-gold)";
+        startStopBtn.innerText = translations[currentLang].resume;
         startStopBtn.style.color = "var(--seal-gold)";
         clearInterval(timerInterval);
-        // Punkt an aktueller Position einfrieren
         const computedStyle = window.getComputedStyle(dot);
         dot.style.top = computedStyle.top;
         dot.style.left = computedStyle.left;
@@ -234,28 +316,33 @@
         stopExercise();
         currentPhase = -1;
         timeLeft = boxTime;
-        isRunning = false;
-        startStopBtn.innerText = "Start";
-        phaseText.innerText = "Bereit?";
+        const t = translations[currentLang];
+        startStopBtn.innerText = t.start;
+        phaseText.innerText = t.ready;
         phaseText.style.color = "var(--text-light)";
         timerDisplay.innerText = "--";
+        statusMsg.innerText = t.status;
 
-        // Punkt zurück auf Start (Links Unten)
         dot.style.transition = "none";
         dot.style.left = "-10px";
-        dot.style.top = "310px";
+        dot.style.top = "290px";
       }
 
       function runCycle() {
         if (!isRunning) return;
 
-        updatePhaseUI();
+        const t = translations[currentLang];
+        phaseText.innerText = t.phases[currentPhase];
+        phaseText.style.color = ["#00ffcc", "#ffc300", "#ff595e", "#a2d2ff"][
+          currentPhase
+        ];
+        timerDisplay.innerText = timeLeft;
+
         moveDot();
 
         timerInterval = setInterval(() => {
           timeLeft--;
           timerDisplay.innerText = timeLeft;
-
           if (timeLeft <= 0) {
             clearInterval(timerInterval);
             currentPhase = (currentPhase + 1) % 4;
@@ -265,45 +352,33 @@
         }, 1000);
       }
 
-      function updatePhaseUI() {
-        const p = phases[currentPhase];
-        phaseText.innerText = p.text;
-        phaseText.style.color = p.color;
-        timerDisplay.innerText = timeLeft;
-      }
-
       function moveDot() {
-        // Wir setzen die Transition genau auf die boxTime für perfekte Synchronität
         dot.style.transition = `all ${boxTime}s linear`;
-
-        const size = 320;
+        const size = 300;
         const offset = -10;
-
-        // In jeder Phase sagen wir dem Punkt, wo er am ENDE der Phase sein soll
         switch (currentPhase) {
-          case 0: // Einatmen: Muss nach OBEN LINKS
-            // Zuerst hart auf die Startposition dieser Phase setzen, falls nötig
+          case 0:
             dot.style.left = offset + "px";
             dot.style.top = size + offset + "px";
-            // Dann Transition zum Ziel
-            setTimeout(() => {
-              dot.style.top = offset + "px";
-            }, 10);
+            setTimeout(() => (dot.style.top = offset + "px"), 20);
             break;
-          case 1: // Halten Voll: Muss nach OBEN RECHTS
+          case 1:
             dot.style.top = offset + "px";
             dot.style.left = size + offset + "px";
             break;
-          case 2: // Ausatmen: Muss nach UNTEN RECHTS
+          case 2:
             dot.style.left = size + offset + "px";
             dot.style.top = size + offset + "px";
             break;
-          case 3: // Halten Leer: Muss nach UNTEN LINKS
+          case 3:
             dot.style.top = size + offset + "px";
             dot.style.left = offset + "px";
             break;
         }
       }
+
+      // Initial Start
+      setLanguage("en");
     </script>
   </body>
 </html>
