@@ -14,7 +14,6 @@
         --seal-accent: #003566;
         --text-light: #e0e1dd;
         --danger: #ef233c;
-        --success: #00ffcc;
       }
 
       body {
@@ -30,11 +29,11 @@
         overflow: hidden;
       }
 
-      /* Language Switch */
       .lang-switch {
         position: absolute;
         top: 20px;
         right: 20px;
+        z-index: 100;
       }
 
       .lang-switch button {
@@ -45,17 +44,18 @@
       }
 
       h1 {
-        margin-bottom: 20px;
+        margin-bottom: 10px;
         font-weight: 300;
         letter-spacing: 4px;
         color: var(--seal-gold);
         text-transform: uppercase;
         text-align: center;
+        font-size: 1.5rem;
       }
 
       .settings,
       .controls {
-        margin-bottom: 20px;
+        margin-bottom: 15px;
         display: flex;
         gap: 10px;
       }
@@ -77,18 +77,15 @@
         background: var(--seal-gold);
         color: var(--seal-blue);
       }
-
       button.active {
         background: var(--seal-gold);
         color: var(--seal-blue);
       }
-
       button.btn-main {
         padding: 12px 25px;
         font-size: 1rem;
         border-width: 2px;
       }
-
       button.btn-reset {
         border-color: var(--danger);
         color: var(--danger);
@@ -122,7 +119,6 @@
         text-align: center;
         pointer-events: none;
       }
-
       #phase-text {
         font-size: 1.4rem;
         font-weight: bold;
@@ -131,31 +127,26 @@
         display: block;
         min-height: 1.6rem;
       }
-
       #timer {
         font-size: 5rem;
         font-family: monospace;
         font-weight: bold;
         line-height: 1;
       }
-
+      .total-time-display {
+        margin-top: 10px;
+        font-size: 0.9rem;
+        color: var(--seal-gold);
+        font-weight: bold;
+        opacity: 0.8;
+      }
       .info-text {
-        margin-top: 25px;
+        margin-top: 20px;
         font-size: 0.8rem;
         opacity: 0.5;
         max-width: 280px;
         text-align: center;
-      }
-
-      /* Visitor Counter Styling */
-      .counter {
-        position: absolute;
-        bottom: 10px;
-        opacity: 0.4;
-        transition: opacity 0.3s;
-      }
-      .counter:hover {
-        opacity: 1;
+        min-height: 2.4rem;
       }
     </style>
   </head>
@@ -178,6 +169,9 @@
       <div class="instruction-container">
         <span id="phase-text">Ready?</span>
         <div id="timer">--</div>
+        <div class="total-time-display" id="total-time-label">
+          Session: 00:00
+        </div>
       </div>
     </div>
 
@@ -203,28 +197,34 @@
       let timeLeft = 0;
       let isRunning = false;
       let timerInterval;
+      let totalSeconds = 0;
 
       const translations = {
         en: {
           title: "Box Breathing",
           ready: "Ready?",
           start: "Start",
-          stop: "Stop",
+          pause: "Pause",
           reset: "Reset",
           resume: "Resume",
-          status: "Select your time and press start.",
-          running: "Focus on the gold dot...",
+          session: "Session: ",
+          statusDefault: "Select your time and press start.",
+          statusRunning:
+            "Focus on the gold dot. Breathe in and out as indicated.",
+          statusPaused: "Exercise paused. Press resume to continue.",
           phases: ["Inhale", "Hold (Full)", "Exhale", "Hold (Empty)"],
         },
         de: {
           title: "Box-Atmung",
           ready: "Bereit?",
           start: "Start",
-          stop: "Stopp",
+          pause: "Pause",
           reset: "Reset",
           resume: "Weiter",
-          status: "Wähle die Zeit und drücke Start.",
-          running: "Fokussiere den gelben Punkt...",
+          session: "Sitzung: ",
+          statusDefault: "Wähle deine Zeit und drücke Start.",
+          statusRunning: "Fokussiere den gelben Punkt. Atme wie vorgegeben.",
+          statusPaused: "Übung pausiert. Drücke Weiter zum Fortfahren.",
           phases: ["Einatmen", "Halten (Voll)", "Ausatmen", "Halten (Leer)"],
         },
       };
@@ -236,6 +236,20 @@
       const resetBtn = document.getElementById("resetBtn");
       const statusMsg = document.getElementById("status-msg");
       const titleEl = document.getElementById("title");
+      const totalTimeDisplay = document.getElementById("total-time-label");
+
+      function formatTotalTime(s) {
+        const mins = Math.floor(s / 60);
+        const secs = s % 60;
+        return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+      }
+
+      function updateStatusText() {
+        const t = translations[currentLang];
+        if (currentPhase === -1) statusMsg.innerText = t.statusDefault;
+        else if (isRunning) statusMsg.innerText = t.statusRunning;
+        else statusMsg.innerText = t.statusPaused;
+      }
 
       function setLanguage(lang) {
         currentLang = lang;
@@ -246,23 +260,24 @@
           .getElementById("lang-de")
           .classList.toggle("active", lang === "de");
 
-        // UI Texte anpassen
         const t = translations[lang];
         titleEl.innerText = t.title;
         resetBtn.innerText = t.reset;
+        totalTimeDisplay.innerText = t.session + formatTotalTime(totalSeconds);
 
         if (!isRunning) {
           if (currentPhase === -1) {
             phaseText.innerText = t.ready;
             startStopBtn.innerText = t.start;
-            statusMsg.innerText = t.status;
           } else {
             startStopBtn.innerText = t.resume;
+            phaseText.innerText = t.phases[currentPhase];
           }
         } else {
-          startStopBtn.innerText = t.stop;
+          startStopBtn.innerText = t.pause;
           phaseText.innerText = t.phases[currentPhase];
         }
+        updateStatusText();
       }
 
       function setBoxTime(s) {
@@ -282,38 +297,43 @@
       function startExercise() {
         isRunning = true;
         const t = translations[currentLang];
-        startStopBtn.innerText = t.stop;
+        startStopBtn.innerText = t.pause;
         startStopBtn.style.color = "var(--danger)";
-        statusMsg.innerText = t.running;
 
         if (currentPhase === -1) {
           currentPhase = 0;
           timeLeft = boxTime;
         }
+        updateStatusText();
         runCycle();
       }
 
       function stopExercise() {
         isRunning = false;
-        startStopBtn.innerText = translations[currentLang].resume;
+        const t = translations[currentLang];
+        startStopBtn.innerText = t.resume;
         startStopBtn.style.color = "var(--seal-gold)";
         clearInterval(timerInterval);
+
         const computedStyle = window.getComputedStyle(dot);
         dot.style.top = computedStyle.top;
         dot.style.left = computedStyle.left;
         dot.style.transition = "none";
+        updateStatusText();
       }
 
       function resetExercise() {
         stopExercise();
         currentPhase = -1;
         timeLeft = boxTime;
+        totalSeconds = 0;
         const t = translations[currentLang];
         startStopBtn.innerText = t.start;
         phaseText.innerText = t.ready;
         phaseText.style.color = "var(--text-light)";
         timerDisplay.innerText = "--";
-        statusMsg.innerText = t.status;
+        totalTimeDisplay.innerText = t.session + "00:00";
+        updateStatusText();
 
         dot.style.transition = "none";
         dot.style.left = "-10px";
@@ -330,11 +350,15 @@
         ];
         timerDisplay.innerText = timeLeft;
 
-        moveDot();
+        moveDot(timeLeft);
 
         timerInterval = setInterval(() => {
           timeLeft--;
+          totalSeconds++;
           timerDisplay.innerText = timeLeft;
+          totalTimeDisplay.innerText =
+            translations[currentLang].session + formatTotalTime(totalSeconds);
+
           if (timeLeft <= 0) {
             clearInterval(timerInterval);
             currentPhase = (currentPhase + 1) % 4;
@@ -344,32 +368,31 @@
         }, 1000);
       }
 
-      function moveDot() {
-        dot.style.transition = `all ${boxTime}s linear`;
+      function moveDot(duration) {
+        dot.style.transition = `all ${duration}s linear`;
         const size = 300;
         const offset = -10;
+
         switch (currentPhase) {
           case 0:
+            dot.style.top = offset + "px";
             dot.style.left = offset + "px";
-            dot.style.top = size + offset + "px";
-            setTimeout(() => (dot.style.top = offset + "px"), 20);
             break;
           case 1:
-            dot.style.top = offset + "px";
             dot.style.left = size + offset + "px";
+            dot.style.top = offset + "px";
             break;
           case 2:
-            dot.style.left = size + offset + "px";
             dot.style.top = size + offset + "px";
+            dot.style.left = size + offset + "px";
             break;
           case 3:
-            dot.style.top = size + offset + "px";
             dot.style.left = offset + "px";
+            dot.style.top = size + offset + "px";
             break;
         }
       }
 
-      // Initial Start
       setLanguage("en");
     </script>
   </body>
